@@ -1,18 +1,25 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Login } from './components/Login'
 import { Layout } from './components/Layout'
+import { Loading } from './components/Loading'
 import { AuthProvider } from './context/AuthProvider'
+import { FeedbackProvider } from './context/FeedbackProvider'
 import { ThemeProvider } from './context/ThemeProvider'
 import { useAuth } from './context/useAuth'
 import { navForRole } from './navigation'
 import type { Page } from './navigation'
-import { Attendance } from './pages/Attendance'
-import { AuditLog } from './pages/AuditLog'
-import { Classes } from './pages/Classes'
-import { Dashboard } from './pages/Dashboard'
-import { MyAttendance } from './pages/MyAttendance'
-import { Reports } from './pages/Reports'
-import { Students } from './pages/Students'
+
+const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })))
+const Students = lazy(() => import('./pages/Students').then((m) => ({ default: m.Students })))
+const Classes = lazy(() => import('./pages/Classes').then((m) => ({ default: m.Classes })))
+const Attendance = lazy(() => import('./pages/Attendance').then((m) => ({ default: m.Attendance })))
+const Reports = lazy(() => import('./pages/Reports').then((m) => ({ default: m.Reports })))
+const AuditLog = lazy(() => import('./pages/AuditLog').then((m) => ({ default: m.AuditLog })))
+const MyAttendance = lazy(() =>
+  import('./pages/MyAttendance').then((m) => ({ default: m.MyAttendance })),
+)
 
 function Shell() {
   const { session } = useAuth()
@@ -44,17 +51,31 @@ function Shell() {
 
   return (
     <Layout page={active} onNavigate={setPage}>
-      {render()}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={active}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+        >
+          <Suspense fallback={<Loading />}>{render()}</Suspense>
+        </motion.div>
+      </AnimatePresence>
     </Layout>
   )
 }
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <Shell />
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <FeedbackProvider>
+          <AuthProvider>
+            <Shell />
+          </AuthProvider>
+        </FeedbackProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   )
 }

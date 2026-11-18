@@ -8,9 +8,10 @@ mod utils;
 
 use std::sync::Arc;
 
+use axum::http::HeaderValue;
 use axum::Router;
 use tokio::net::TcpListener;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
@@ -32,6 +33,13 @@ async fn main() {
         .expect("JWT_SECRET must be set (see backend/.env.example)");
     let port = std::env::var("PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(3000);
 
+    let cors_origins = std::env::var("CORS_ORIGIN")
+        .unwrap_or_else(|_| "http://localhost:5173,http://127.0.0.1:5173".to_string())
+        .split(',')
+        .map(|origin| origin.trim().parse::<HeaderValue>())
+        .collect::<Result<Vec<_>, _>>()
+        .expect("CORS_ORIGIN must be valid comma-separated origins");
+
     let pool = db::connect(&database_url)
         .await
         .expect("failed to connect to PostgreSQL");
@@ -41,8 +49,13 @@ async fn main() {
         jwt_secret: Arc::new(jwt_secret),
     };
 
+    let cors = CorsLayer::new()
+        .allow_origin(cors_origins)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app: Router = routes::router(state)
-        .layer(CorsLayer::permissive())
+        .layer(cors)
         .layer(TraceLayer::new_for_http());
 
     let listener = TcpListener::bind(("0.0.0.0", port))

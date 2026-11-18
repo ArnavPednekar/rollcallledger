@@ -1,9 +1,9 @@
 import { createContext } from 'react'
 
-export type Theme = 'light' | 'dark'
+export type Mode = 'light' | 'dark'
 
 export interface ThemeValue {
-  theme: Theme
+  mode: Mode
   toggle: () => void
 }
 
